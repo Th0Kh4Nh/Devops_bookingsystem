@@ -84,7 +84,7 @@ function App() {
       }
 
       const newBooking = await response.json();
-      setBookings([newBooking, ...bookings]);
+      setBookings((prevBookings) => [newBooking, ...prevBookings]);
       
       // Reset form
       setFormData({
@@ -119,7 +119,7 @@ function App() {
         throw new Error(`Failed to cancel booking: ${response.statusText}`);
       }
 
-      setBookings(bookings.filter((booking) => booking._id !== bookingId));
+      setBookings((prevBookings) => prevBookings.filter((booking) => booking._id !== bookingId));
       console.log('Booking cancelled successfully:', bookingId);
     } catch (err) {
       console.error('Error cancelling booking:', err.message);
