@@ -33,9 +33,9 @@ function App() {
   };
 
   // ===== USE EFFECT - FETCH BOOKINGS ON MOUNT =====
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetchBookings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ===== HANDLE FORM INPUT CHANGE =====
