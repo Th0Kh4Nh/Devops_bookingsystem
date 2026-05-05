@@ -34,6 +34,7 @@ function App() {
 
   // ===== USE EFFECT - FETCH BOOKINGS ON MOUNT =====
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchBookings();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
