@@ -8,11 +8,26 @@ function App() {
   const [formData, setFormData] = useState({
     customerName: '',
     pitchName: '',
-    startTime: '',
-    endTime: ''
+    bookingDate: '',
+    timeSlot: ''
   });
 
   const API_URL = import.meta.env.VITE_API_URL;
+
+  // ===== PREDEFINED TIME SLOTS =====
+  const TIME_SLOTS = [
+    { id: 1, label: '17:00 - 18:30', startTime: '17:00', endTime: '18:30' },
+    { id: 2, label: '18:30 - 20:00', startTime: '18:30', endTime: '20:00' },
+    { id: 3, label: '20:00 - 21:30', startTime: '20:00', endTime: '21:30' }
+  ];
+
+  // ===== PITCH OPTIONS =====
+  const PITCH_OPTIONS = [
+    { id: 1, label: 'Sân 5 người' },
+    { id: 2, label: 'Sân 7 người' },
+    { id: 3, label: 'Sân 11 người' },
+    { id: 4, label: 'Sân Futsal' }
+  ];
 
   // ===== FETCH ALL BOOKINGS =====
   const fetchBookings = async () => {
@@ -21,14 +36,14 @@ function App() {
       const response = await fetch(`${API_URL}/bookings`);
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch bookings: ${response.statusText}`);
+        throw new Error(`Không thể tải đặt lịch: ${response.statusText}`);
       }
 
       const data = await response.json();
       setBookings(data);
     } catch (err) {
-      console.error('Error fetching bookings:', err.message);
-      setError('Failed to load bookings. Please try again.');
+      console.error('Lỗi khi tải đặt lịch:', err.message);
+      setError('Không thể tải đặt lịch. Vui lòng thử lại.');
     }
   };
 
@@ -54,19 +69,26 @@ function App() {
     setError('');
 
     // Validate form data
-    if (!formData.customerName || !formData.pitchName || !formData.startTime || !formData.endTime) {
-      setError('All fields are required');
-      return;
-    }
-
-    // Validate time logic
-    if (new Date(formData.startTime) >= new Date(formData.endTime)) {
-      setError('End time must be after start time');
+    if (!formData.customerName || !formData.pitchName || !formData.bookingDate || !formData.timeSlot) {
+      setError('Tất cả các trường đều bắt buộc');
       return;
     }
 
     try {
       setLoading(true);
+
+      // Find the selected time slot to get start and end times
+      const selectedSlot = TIME_SLOTS.find(slot => slot.id === parseInt(formData.timeSlot));
+      if (!selectedSlot) {
+        setError('Khung giờ không hợp lệ');
+        return;
+      }
+
+      // Parse date and time slot into ISO datetime strings
+      // formData.bookingDate is in format "YYYY-MM-DD"
+      const startDateTime = `${formData.bookingDate}T${selectedSlot.startTime}:00`;
+      const endDateTime = `${formData.bookingDate}T${selectedSlot.endTime}:00`;
+
       const response = await fetch(`${API_URL}/bookings`, {
         method: 'POST',
         headers: {
@@ -75,13 +97,13 @@ function App() {
         body: JSON.stringify({
           customerName: formData.customerName,
           pitchName: formData.pitchName,
-          startTime: formData.startTime,
-          endTime: formData.endTime
+          startTime: startDateTime,
+          endTime: endDateTime
         })
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to create booking: ${response.statusText}`);
+        throw new Error(`Không thể tạo đặt lịch: ${response.statusText}`);
       }
 
       const newBooking = await response.json();
@@ -91,14 +113,14 @@ function App() {
       setFormData({
         customerName: '',
         pitchName: '',
-        startTime: '',
-        endTime: ''
+        bookingDate: '',
+        timeSlot: ''
       });
 
-      console.log('Booking created successfully:', newBooking);
+      console.log('Đặt lịch tạo thành công:', newBooking);
     } catch (err) {
-      console.error('Error creating booking:', err.message);
-      setError('Failed to create booking. Please try again.');
+      console.error('Lỗi khi tạo đặt lịch:', err.message);
+      setError('Không thể tạo đặt lịch. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
@@ -106,7 +128,7 @@ function App() {
 
   // ===== CANCEL BOOKING =====
   const handleCancelBooking = async (bookingId) => {
-    if (!window.confirm('Are you sure you want to cancel this booking?')) {
+    if (!window.confirm('Bạn có chắc chắn muốn hủy đặt lịch này không?')) {
       return;
     }
 
@@ -117,14 +139,14 @@ function App() {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to cancel booking: ${response.statusText}`);
+        throw new Error(`Không thể hủy đặt lịch: ${response.statusText}`);
       }
 
       setBookings((prevBookings) => prevBookings.filter((booking) => booking._id !== bookingId));
-      console.log('Booking cancelled successfully:', bookingId);
+      console.log('Đặt lịch hủy thành công:', bookingId);
     } catch (err) {
-      console.error('Error cancelling booking:', err.message);
-      setError('Failed to cancel booking. Please try again.');
+      console.error('Lỗi khi hủy đặt lịch:', err.message);
+      setError('Không thể hủy đặt lịch. Vui lòng thử lại.');
     }
   };
 
@@ -139,7 +161,7 @@ function App() {
 
   return (
     <div className="container">
-      <h1 className="title">Football Pitch Booking System</h1>
+      <h1 className="title">Hệ thống Đặt lịch Sân Bóng Đá</h1>
 
       {/* ===== ERROR ALERT ===== */}
       {error && (
@@ -151,15 +173,15 @@ function App() {
 
       {/* ===== BOOKING FORM ===== */}
       <div className="form-section">
-        <h2>Create a Booking</h2>
+        <h2>Tạo Đặt lịch</h2>
         <form onSubmit={handleSubmit} className="booking-form">
           <div className="form-group">
-            <label htmlFor="customerName">Customer Name:</label>
+            <label htmlFor="customerName">Tên khách hàng:</label>
             <input
               type="text"
               id="customerName"
               name="customerName"
-              placeholder="Enter customer name"
+              placeholder="Nhập tên khách hàng"
               value={formData.customerName}
               onChange={handleInputChange}
               required
@@ -167,72 +189,83 @@ function App() {
           </div>
 
           <div className="form-group">
-            <label htmlFor="pitchName">Pitch Name:</label>
-            <input
-              type="text"
+            <label htmlFor="pitchName">Tên sân:</label>
+            <select
               id="pitchName"
               name="pitchName"
-              placeholder="Enter pitch name"
               value={formData.pitchName}
               onChange={handleInputChange}
               required
-            />
+            >
+              <option value="">-- Chọn sân --</option>
+              {PITCH_OPTIONS.map((pitch) => (
+                <option key={pitch.id} value={pitch.label}>
+                  {pitch.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="form-group">
-            <label htmlFor="startTime">Start Time:</label>
+            <label htmlFor="bookingDate">Ngày đặt lịch:</label>
             <input
-              type="datetime-local"
-              id="startTime"
-              name="startTime"
-              value={formData.startTime}
+              type="date"
+              id="bookingDate"
+              name="bookingDate"
+              value={formData.bookingDate}
               onChange={handleInputChange}
               required
             />
           </div>
 
           <div className="form-group">
-            <label htmlFor="endTime">End Time:</label>
-            <input
-              type="datetime-local"
-              id="endTime"
-              name="endTime"
-              value={formData.endTime}
+            <label htmlFor="timeSlot">Khung giờ:</label>
+            <select
+              id="timeSlot"
+              name="timeSlot"
+              value={formData.timeSlot}
               onChange={handleInputChange}
               required
-            />
+            >
+              <option value="">-- Chọn khung giờ --</option>
+              {TIME_SLOTS.map((slot) => (
+                <option key={slot.id} value={slot.id}>
+                  {slot.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           <button type="submit" className="submit-btn" disabled={loading}>
-            {loading ? 'Creating...' : 'Create Booking'}
+            {loading ? 'Đang tạo...' : 'Tạo Đặt lịch'}
           </button>
         </form>
       </div>
 
       {/* ===== BOOKINGS LIST ===== */}
       <div className="bookings-section">
-        <h2>Current Bookings</h2>
+        <h2>Đặt lịch hiện tại</h2>
         {bookings.length === 0 ? (
-          <p className="no-bookings">No bookings available</p>
+          <p className="no-bookings">Không có đặt lịch nào</p>
         ) : (
           <div className="bookings-list">
             {bookings.map((booking) => (
               <div key={booking._id} className="booking-card">
                 <div className="booking-details">
                   <p>
-                    <strong>Customer:</strong> {booking.customerName}
+                    <strong>Khách hàng:</strong> {booking.customerName}
                   </p>
                   <p>
-                    <strong>Pitch:</strong> {booking.pitchName}
+                    <strong>Sân:</strong> {booking.pitchName}
                   </p>
                   <p>
-                    <strong>Start:</strong> {formatDateTime(booking.startTime)}
+                    <strong>Bắt đầu:</strong> {formatDateTime(booking.startTime)}
                   </p>
                   <p>
-                    <strong>End:</strong> {formatDateTime(booking.endTime)}
+                    <strong>Kết thúc:</strong> {formatDateTime(booking.endTime)}
                   </p>
                   <p>
-                    <strong>Status:</strong>{' '}
+                    <strong>Trạng thái:</strong>{' '}
                     <span className="status-badge">{booking.status}</span>
                   </p>
                 </div>
@@ -240,7 +273,7 @@ function App() {
                   className="cancel-btn"
                   onClick={() => handleCancelBooking(booking._id)}
                 >
-                  Cancel Booking
+                  Hủy Đặt lịch
                 </button>
               </div>
             ))}
