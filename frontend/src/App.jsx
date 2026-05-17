@@ -172,13 +172,13 @@ function App() {
 
   return (
     <div className="container">
-      <h1 className="title">Hệ thống Đặt lịch Sân Bóng Đá</h1>
+      <h1 className="title">HỆ THỐNG ĐẶT LỊCH SÂN BÓNG ĐÁ</h1>
 
       {/* Toast notifications */}
 
       {/* ===== BOOKING FORM ===== */}
       <div className="form-section">
-        <h2>Tạo Đặt lịch</h2>
+        <h2>TẠO ĐẶT LỊCH</h2>
         <form onSubmit={handleSubmit} className="booking-form">
           <div className="form-group">
             <label htmlFor="customerName">Tên khách hàng:</label>
