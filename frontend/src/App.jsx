@@ -243,7 +243,7 @@ function App() {
           </div>
 
           <button type="submit" className="submit-btn" disabled={loading}>
-            {loading ? 'Đang tạo...' : 'Tạo Đặt lịch'}
+            {loading ? 'Đang tạo...' : 'Tạo Đặt Lịch'}
           </button>
         </form>
       </div>
