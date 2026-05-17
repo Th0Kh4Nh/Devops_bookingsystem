@@ -72,11 +72,36 @@ app.post('/api/bookings', async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    // Parse dates and validate
+    const newStart = new Date(startTime);
+    const newEnd = new Date(endTime);
+
+    if (isNaN(newStart.getTime()) || isNaN(newEnd.getTime())) {
+      return res.status(400).json({ error: 'Invalid date format' });
+    }
+
+    if (newEnd <= newStart) {
+      return res.status(400).json({ error: 'endTime must be after startTime' });
+    }
+
+    // Check for overlapping bookings on the same pitch with status 'Đã đặt'
+    // Overlap condition: existing.startTime < newEnd && existing.endTime > newStart
+    const overlapping = await Booking.findOne({
+      pitchName,
+      status: 'Đã đặt',
+      startTime: { $lt: newEnd },
+      endTime: { $gt: newStart }
+    });
+
+    if (overlapping) {
+      return res.status(400).json({ error: 'Sân này đã có người đặt trong khoảng thời gian trên!' });
+    }
+
     const booking = new Booking({
       customerName,
       pitchName,
-      startTime: new Date(startTime),
-      endTime: new Date(endTime),
+      startTime: newStart,
+      endTime: newEnd,
       status: status || 'Đã đặt'
     });
 
