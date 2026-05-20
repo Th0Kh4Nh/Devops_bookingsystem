@@ -86,29 +86,28 @@ app.post('/api/bookings', async (req, res) => {
     if (newEnd <= newStart) {
       return res.status(400).json({ error: 'endTime must be after startTime' });
     }
-
+    const now = new Date();
+    if (newStart < now) {
+      return res.status(400).json({
+        error: 'Không thể đặt lịch trong quá khứ'
+      });
+    }
     // Check for overlapping bookings on the same pitch with status 'Đã đặt'
     // Overlap condition: existing.startTime < newEnd && existing.endTime > newStart
     const overlapping = await Booking.findOne({
-      pitchName,
+      pitchName: pitchName,
       status: 'Đã đặt',
-      $expr: {
-        $and: [
-          {
-            $lt: [
-              { $toLong: '$startTime' },
-              endTimestamp
-            ]
-          },
-          {
-            $gt: [
-              { $toLong: '$endTime' },
-              startTimestamp
-            ]
-          }
-        ]
+      startTime: {
+        $lt: newEnd
+      },
+      endTime: {
+        $gt: newStart
       }
     });
+
+    console.log('NEW START:', newStart);
+    console.log('NEW END:', newEnd);
+    console.log('OVERLAPPING:', overlapping);
 
     if (overlapping) {
       return res.status(400).json({ error: 'Sân này đã có người đặt trong khoảng thời gian trên!' });
