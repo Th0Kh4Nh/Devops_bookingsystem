@@ -92,8 +92,13 @@ function App() {
         return;
       }
 
-      const startDateTime = `${formData.bookingDate}T${selectedSlot.startTime}:00`;
-      const endDateTime = `${formData.bookingDate}T${selectedSlot.endTime}:00`;
+      const startDateTime = new Date(
+        `${formData.bookingDate}T${selectedSlot.startTime}:00`
+      );
+
+      const endDateTime = new Date(
+        `${formData.bookingDate}T${selectedSlot.endTime}:00`
+    );
 
       const response = await fetch(`${API_URL}/bookings`, {
         method: 'POST',
@@ -163,7 +168,9 @@ function App() {
   // ===== FORMAT DATE TIME FOR DISPLAY =====
   const formatDateTime = (dateString) => {
     try {
-      return new Date(dateString).toLocaleString();
+      return new Date(dateString).toLocaleString('vi-VN', {
+        timeZone: 'Asia/Ho_Chi_Minh'
+      });
     } catch {
       return dateString;
     }
