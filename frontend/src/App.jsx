@@ -6,7 +6,6 @@ import 'react-toastify/dist/ReactToastify.css';
 function App() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     customerName: '',
     pitchName: '',
