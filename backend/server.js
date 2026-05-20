@@ -46,7 +46,7 @@ const bookingSchema = new mongoose.Schema({
   endTime: {
     type: Date,
     required: true
-  },
+  }, 
   status: {
     type: String,
     default: 'Đã đặt'
@@ -76,6 +76,9 @@ app.post('/api/bookings', async (req, res) => {
     const newStart = new Date(startTime);
     const newEnd = new Date(endTime);
 
+    const startTimestamp = newStart.getTime();
+    const endTimestamp = newEnd.getTime();
+
     if (isNaN(newStart.getTime()) || isNaN(newEnd.getTime())) {
       return res.status(400).json({ error: 'Invalid date format' });
     }
@@ -89,8 +92,22 @@ app.post('/api/bookings', async (req, res) => {
     const overlapping = await Booking.findOne({
       pitchName,
       status: 'Đã đặt',
-      startTime: { $lt: newEnd },
-      endTime: { $gt: newStart }
+      $expr: {
+        $and: [
+          {
+            $lt: [
+              { $toLong: '$startTime' },
+              endTimestamp
+            ]
+          },
+          {
+            $gt: [
+              { $toLong: '$endTime' },
+              startTimestamp
+            ]
+          }
+        ]
+      }
     });
 
     if (overlapping) {
