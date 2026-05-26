@@ -3,295 +3,120 @@ import './App.css';
 
 function App() {
   const [bookings, setBookings] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     customerName: '',
-    pitchName: '',
+    phoneNumber: '',
+    pitchName: 'Sân 5 người',
     bookingDate: '',
-    timeSlot: ''
+    startTime: '',
+    endTime: ''
   });
 
-  const API_URL = import.meta.env.VITE_API_URL;
-  console.log('API URL:', API_URL);
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  // Tính ngày hôm nay để chặn đặt lùi ngày
+  const today = new Date().toISOString().split('T')[0];
 
-  // ===== PREDEFINED TIME SLOTS =====
-  const TIME_SLOTS = [
-    { id: 1, label: '17:00 - 18:30', startTime: '17:00', endTime: '18:30' },
-    { id: 2, label: '18:30 - 20:00', startTime: '18:30', endTime: '20:00' },
-    { id: 3, label: '20:00 - 21:30', startTime: '20:00', endTime: '21:30' }
-  ];
-
-  // ===== PITCH OPTIONS =====
-  const PITCH_OPTIONS = [
-    { id: 1, label: 'Sân 5 người' },
-    { id: 2, label: 'Sân 7 người' },
-    { id: 3, label: 'Sân 11 người' },
-    { id: 4, label: 'Sân Futsal' }
-  ];
-
-  // ===== FETCH ALL BOOKINGS =====
-  const fetchBookings = async () => {
-    try {
-      setError('');
-      const response = await fetch(`${API_URL}/bookings`);
-
-      if (!response.ok) {
-        throw new Error(`Không thể tải đặt lịch: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      setBookings(data);
-    } catch (err) {
-      console.error('Lỗi khi tải đặt lịch:', err.message);
-      setError('Không thể tải đặt lịch. Vui lòng thử lại.');
-    }
-  };
-
-  // ===== USE EFFECT - FETCH BOOKINGS ON MOUNT =====
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchBookings();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ===== HANDLE FORM INPUT CHANGE =====
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prevState) => ({
-      ...prevState,
-      [name]: value
-    }));
+  const fetchBookings = async () => {
+    try {
+      const response = await fetch(`${apiUrl}/bookings`);
+      if (response.ok) {
+        const data = await response.json();
+        setBookings(data);
+      }
+    } catch (err) {
+      console.error('Lỗi khi tải danh sách:', err);
+    }
   };
 
-  // ===== CREATE BOOKING =====
+  const handleInputChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-
-    // Validate form data
-    if (!formData.customerName || !formData.pitchName || !formData.bookingDate || !formData.timeSlot) {
-      setError('Tất cả các trường đều bắt buộc');
-      return;
-    }
-
     try {
-      setLoading(true);
-
-      // Find the selected time slot to get start and end times
-      const selectedSlot = TIME_SLOTS.find(slot => slot.id === parseInt(formData.timeSlot));
-      if (!selectedSlot) {
-        setError('Khung giờ không hợp lệ');
-        return;
-      }
-
-      // Parse date and time slot into ISO datetime strings
-      // formData.bookingDate is in format "YYYY-MM-DD"
-      const startDateTime = `${formData.bookingDate}T${selectedSlot.startTime}:00`;
-
-      const endDateTime = `${formData.bookingDate}T${selectedSlot.endTime}:00`;
-
-      const response = await fetch(`${API_URL}/bookings`, {
+      const response = await fetch(`${apiUrl}/bookings`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          customerName: formData.customerName,
-          pitchName: formData.pitchName,
-          startTime: startDateTime,
-          endTime: endDateTime
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.error || `Không thể tạo đặt lịch`
-        );
-      }
-
-      const newBooking = await response.json();
-      await fetchBookings();
       
-      // Reset form
-      setFormData({
-        customerName: '',
-        pitchName: '',
-        bookingDate: '',
-        timeSlot: ''
-      });
-
-      console.log('Đặt lịch tạo thành công:', newBooking);
-    } catch (err) {
-      console.error('Lỗi khi tạo đặt lịch:', err.message);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ===== CANCEL BOOKING =====
-  const handleCancelBooking = async (bookingId) => {
-    if (!window.confirm('Bạn có chắc chắn muốn hủy đặt lịch này không?')) {
-      return;
-    }
-
-    try {
-      setError('');
-      const response = await fetch(`${API_URL}/bookings/${bookingId}`, {
-        method: 'DELETE'
-      });
-
-      if (!response.ok) {
-        throw new Error(`Không thể hủy đặt lịch: ${response.statusText}`);
+      const result = await response.json();
+      if (response.ok) {
+        alert('✅ Đặt sân thành công!');
+        fetchBookings();
+      } else {
+        alert('❌ Lỗi: ' + result.error);
       }
-
-      setBookings((prevBookings) => prevBookings.filter((booking) => booking._id !== bookingId));
-      console.log('Đặt lịch hủy thành công:', bookingId);
     } catch (err) {
-      console.error('Lỗi khi hủy đặt lịch:', err.message);
-      setError('Không thể hủy đặt lịch. Vui lòng thử lại.');
+      alert('Lỗi kết nối máy chủ!');
     }
   };
 
-  // ===== FORMAT DATE TIME FOR DISPLAY =====
-  const formatDateTime = (dateString) => {
+  const handleDelete = async (id) => {
+    if (!window.confirm('Hủy lịch này?')) return;
     try {
-      return new Date(dateString).toLocaleString('vi-VN', {
-        timeZone: 'Asia/Ho_Chi_Minh',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    } catch {
-      return dateString;
+      const response = await fetch(`${apiUrl}/bookings/${id}`, { method: 'DELETE' });
+      if (response.ok) {
+        alert('Đã hủy!');
+        fetchBookings();
+      }
+    } catch (err) {
+      alert('Lỗi kết nối máy chủ!');
     }
   };
 
   return (
-    <div className="container">
-      <h1 className="title">Hệ thống Đặt lịch Sân Bóng Đá</h1>
+    <div className="app-container">
+      <h1>Hệ Thống Đặt Sân</h1>
+      
+      <form onSubmit={handleSubmit} className="booking-form">
+        <select name="pitchName" value={formData.pitchName} onChange={handleInputChange}>
+          <option value="Sân 5 người">Sân 5 người</option>
+          <option value="Sân 7 người">Sân 7 người</option>
+        </select>
+        
+        <input type="text" name="customerName" placeholder="Tên khách" required onChange={handleInputChange} />
+        <input type="text" name="phoneNumber" placeholder="SĐT" required onChange={handleInputChange} />
+        
+        <input type="date" name="bookingDate" required min={today} onChange={handleInputChange} />
+        <input type="time" name="startTime" required onChange={handleInputChange} />
+        <input type="time" name="endTime" required onChange={handleInputChange} />
+        
+        <button type="submit">Đặt Sân</button>
+      </form>
 
-      {/* ===== ERROR ALERT ===== */}
-      {error && (
-        <div className="error-alert">
-          {error}
-          <button className="close-btn" onClick={() => setError('')}>×</button>
-        </div>
-      )}
-
-      {/* ===== BOOKING FORM ===== */}
-      <div className="form-section">
-        <h2>Tạo Đặt lịch</h2>
-        <form onSubmit={handleSubmit} className="booking-form">
-          <div className="form-group">
-            <label htmlFor="customerName">Tên khách hàng:</label>
-            <input
-              type="text"
-              id="customerName"
-              name="customerName"
-              placeholder="Nhập tên khách hàng"
-              value={formData.customerName}
-              onChange={handleInputChange}
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="pitchName">Tên sân:</label>
-            <select
-              id="pitchName"
-              name="pitchName"
-              value={formData.pitchName}
-              onChange={handleInputChange}
-              required
-            >
-              <option value="">-- Chọn sân --</option>
-              {PITCH_OPTIONS.map((pitch) => (
-                <option key={pitch.id} value={pitch.label}>
-                  {pitch.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="bookingDate">Ngày đặt lịch:</label>
-            <input
-              type="date"
-              id="bookingDate"
-              name="bookingDate"
-              value={formData.bookingDate}
-              onChange={handleInputChange}
-              min={new Date().toISOString().split('T')[0]}
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="timeSlot">Khung giờ:</label>
-            <select
-              id="timeSlot"
-              name="timeSlot"
-              value={formData.timeSlot}
-              onChange={handleInputChange}
-              required
-            >
-              <option value="">-- Chọn khung giờ --</option>
-              {TIME_SLOTS.map((slot) => (
-                <option key={slot.id} value={slot.id}>
-                  {slot.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <button type="submit" className="submit-btn" disabled={loading}>
-            {loading ? 'Đang tạo...' : 'Tạo Đặt lịch'}
-          </button>
-        </form>
-      </div>
-
-      {/* ===== BOOKINGS LIST ===== */}
-      <div className="bookings-section">
-        <h2>Đặt lịch hiện tại</h2>
-        {bookings.length === 0 ? (
-          <p className="no-bookings">Không có đặt lịch nào</p>
-        ) : (
-          <div className="bookings-list">
-            {bookings.map((booking) => (
-              <div key={booking._id} className="booking-card">
-                <div className="booking-details">
-                  <p>
-                    <strong>Khách hàng:</strong> {booking.customerName}
-                  </p>
-                  <p>
-                    <strong>Sân:</strong> {booking.pitchName}
-                  </p>
-                  <p>
-                    <strong>Bắt đầu:</strong> {formatDateTime(booking.startTime)}
-                  </p>
-                  <p>
-                    <strong>Kết thúc:</strong> {formatDateTime(booking.endTime)}
-                  </p>
-                  <p>
-                    <strong>Trạng thái:</strong>{' '}
-                    <span className="status-badge">{booking.status}</span>
-                  </p>
-                </div>
-                <button
-                  className="cancel-btn"
-                  onClick={() => handleCancelBooking(booking._id)}
-                >
-                  Hủy Đặt lịch
-                </button>
-              </div>
+      <div className="booking-list">
+        <h2>Danh sách đặt sân</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Sân</th>
+              <th>Khách</th>
+              <th>Ngày</th>
+              <th>Giờ</th>
+              <th>Trạng thái</th>
+              <th>Hành động</th>
+            </tr>
+          </thead>
+          <tbody>
+            {bookings.map((b) => (
+              <tr key={b._id}>
+                <td>{b.pitchName}</td>
+                <td>{b.customerName}</td>
+                <td>{b.bookingDate}</td>
+                <td>{b.startTime} - {b.endTime}</td>
+                <td>{b.status}</td>
+                <td><button onClick={() => handleDelete(b._id)}>Hủy</button></td>
+              </tr>
             ))}
-          </div>
-        )}
+          </tbody>
+        </table>
       </div>
     </div>
   );
