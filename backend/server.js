@@ -101,11 +101,9 @@ app.post('/api/bookings', async (req, res) => {
 
     // ===== CHECK OVERLAP =====
     const existingBooking = await Booking.findOne({
-      $and: [
-        { pitchName: pitchName },
-        { startTime: { $lt: newEnd } },
-        { endTime: { $gt: newStart } }
-      ]
+      pitchName,
+      startTime: { $lt: newEnd },
+      endTime: { $gt: newStart }
     });
 
     if (existingBooking) {
