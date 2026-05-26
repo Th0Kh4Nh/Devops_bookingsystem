@@ -67,18 +67,32 @@ app.post('/api/bookings', async (req, res) => {
   try {
     const { customerName, pitchName, startTime, endTime, status } = req.body;
 
-    // Validate required fields
+    // ===== VALIDATE =====
     if (!customerName || !pitchName || !startTime || !endTime) {
       return res.status(400).json({
-        error: 'Missing required fields'
+        error: 'Thiếu thông tin đặt lịch'
       });
     }
 
-    // Convert sang Date
     const newStart = new Date(startTime);
     const newEnd = new Date(endTime);
+    const now = new Date();
 
-    // Validate thời gian
+    // ===== CHECK INVALID DATE =====
+    if (isNaN(newStart) || isNaN(newEnd)) {
+      return res.status(400).json({
+        error: 'Ngày giờ không hợp lệ'
+      });
+    }
+
+    // ===== CHECK PAST TIME =====
+    if (newStart < now) {
+      return res.status(400).json({
+        error: 'Không thể đặt lịch trong quá khứ'
+      });
+    }
+
+    // ===== CHECK END > START =====
     if (newStart >= newEnd) {
       return res.status(400).json({
         error: 'Giờ kết thúc phải lớn hơn giờ bắt đầu'
@@ -87,11 +101,11 @@ app.post('/api/bookings', async (req, res) => {
 
     // ===== CHECK OVERLAP =====
     const existingBooking = await Booking.findOne({
-      pitchName: pitchName,
-
-      // overlap condition
-      startTime: { $lt: newEnd },
-      endTime: { $gt: newStart }
+      $and: [
+        { pitchName: pitchName },
+        { startTime: { $lt: newEnd } },
+        { endTime: { $gt: newStart } }
+      ]
     });
 
     if (existingBooking) {
@@ -111,15 +125,13 @@ app.post('/api/bookings', async (req, res) => {
 
     const savedBooking = await booking.save();
 
-    console.log(`Booking created: ${savedBooking._id}`);
-
     res.status(201).json(savedBooking);
 
   } catch (error) {
-    console.error('Error creating booking:', error.message);
+    console.error('Error creating booking:', error);
 
     res.status(500).json({
-      error: 'Failed to create booking'
+      error: 'Lỗi server'
     });
   }
 });

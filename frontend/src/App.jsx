@@ -115,7 +115,7 @@ function App() {
       }
 
       const newBooking = await response.json();
-      setBookings((prevBookings) => [newBooking, ...prevBookings]);
+      await fetchBookings();
       
       // Reset form
       setFormData({
@@ -229,6 +229,7 @@ function App() {
               name="bookingDate"
               value={formData.bookingDate}
               onChange={handleInputChange}
+              min={new Date().toISOString().split('T')[0]}
               required
             />
           </div>
