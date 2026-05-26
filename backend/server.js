@@ -46,7 +46,7 @@ const bookingSchema = new mongoose.Schema({
   endTime: {
     type: Date,
     required: true
-  }, 
+  },
   status: {
     type: String,
     default: 'Đã đặt'
@@ -69,50 +69,38 @@ app.post('/api/bookings', async (req, res) => {
 
     // Validate required fields
     if (!customerName || !pitchName || !startTime || !endTime) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      return res.status(400).json({
+        error: 'Missing required fields'
+      });
     }
 
-    // Parse dates and validate
+    // Convert sang Date
     const newStart = new Date(startTime);
     const newEnd = new Date(endTime);
 
-    const startTimestamp = newStart.getTime();
-    const endTimestamp = newEnd.getTime();
-
-    if (isNaN(newStart.getTime()) || isNaN(newEnd.getTime())) {
-      return res.status(400).json({ error: 'Invalid date format' });
-    }
-
-    if (newEnd <= newStart) {
-      return res.status(400).json({ error: 'endTime must be after startTime' });
-    }
-    const now = new Date();
-    if (newStart < now) {
+    // Validate thời gian
+    if (newStart >= newEnd) {
       return res.status(400).json({
-        error: 'Không thể đặt lịch trong quá khứ'
+        error: 'Giờ kết thúc phải lớn hơn giờ bắt đầu'
       });
     }
-    // Check for overlapping bookings on the same pitch with status 'Đã đặt'
-    // Overlap condition: existing.startTime < newEnd && existing.endTime > newStart
-    const overlapping = await Booking.findOne({
+
+    // ===== CHECK OVERLAP =====
+    const existingBooking = await Booking.findOne({
       pitchName: pitchName,
-      status: 'Đã đặt',
-      startTime: {
-        $lt: newEnd
-      },
-      endTime: {
-        $gt: newStart
-      }
+
+      // overlap condition
+      startTime: { $lt: newEnd },
+      endTime: { $gt: newStart }
     });
 
-    console.log('NEW START:', newStart);
-    console.log('NEW END:', newEnd);
-    console.log('OVERLAPPING:', overlapping);
-
-    if (overlapping) {
-      return res.status(400).json({ error: 'Sân này đã có người đặt trong khoảng thời gian trên!' });
+    if (existingBooking) {
+      return res.status(400).json({
+        error: 'Khung giờ này đã được đặt'
+      });
     }
 
+    // ===== CREATE BOOKING =====
     const booking = new Booking({
       customerName,
       pitchName,
@@ -122,13 +110,20 @@ app.post('/api/bookings', async (req, res) => {
     });
 
     const savedBooking = await booking.save();
+
     console.log(`Booking created: ${savedBooking._id}`);
+
     res.status(201).json(savedBooking);
+
   } catch (error) {
     console.error('Error creating booking:', error.message);
-    res.status(500).json({ error: 'Failed to create booking' });
+
+    res.status(500).json({
+      error: 'Failed to create booking'
+    });
   }
 });
+
 
 // Get All Bookings
 app.get('/api/bookings', async (req, res) => {
@@ -170,6 +165,7 @@ app.use((err, req, res, next) => {
   console.error('Unhandled Error:', err.message);
   res.status(500).json({ error: 'Internal Server Error' });
 });
+
 
 // ===== START SERVER =====
 const PORT = process.env.PORT || 5000;

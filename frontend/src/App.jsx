@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import './App.css';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 
 function App() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     customerName: '',
     pitchName: '',
@@ -30,30 +29,21 @@ function App() {
     { id: 4, label: 'Sân Futsal' }
   ];
 
-  // ===== MIN DATE (today) FOR DATE INPUT =====
-  const today = new Date();
-  const yyyy = today.getFullYear();
-  const mm = String(today.getMonth() + 1).padStart(2, '0');
-  const dd = String(today.getDate()).padStart(2, '0');
-  const minDate = `${yyyy}-${mm}-${dd}`;
-
   // ===== FETCH ALL BOOKINGS =====
   const fetchBookings = async () => {
     try {
+      setError('');
       const response = await fetch(`${API_URL}/bookings`);
 
       if (!response.ok) {
-        const body = await response.json().catch(() => null);
-        const msg = body?.error || `Không thể tải đặt lịch: ${response.statusText}`;
-        toast.error(msg);
-        return;
+        throw new Error(`Không thể tải đặt lịch: ${response.statusText}`);
       }
 
       const data = await response.json();
       setBookings(data);
     } catch (err) {
       console.error('Lỗi khi tải đặt lịch:', err.message);
-      toast.error('Không thể tải đặt lịch. Vui lòng thử lại.');
+      setError('Không thể tải đặt lịch. Vui lòng thử lại.');
     }
   };
 
@@ -76,29 +66,33 @@ function App() {
   // ===== CREATE BOOKING =====
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
 
+    // Validate form data
     if (!formData.customerName || !formData.pitchName || !formData.bookingDate || !formData.timeSlot) {
-      toast.error('Tất cả các trường đều bắt buộc');
+      setError('Tất cả các trường đều bắt buộc');
       return;
     }
 
     try {
       setLoading(true);
 
+      // Find the selected time slot to get start and end times
       const selectedSlot = TIME_SLOTS.find(slot => slot.id === parseInt(formData.timeSlot));
       if (!selectedSlot) {
-        toast.error('Khung giờ không hợp lệ');
-        setLoading(false);
+        setError('Khung giờ không hợp lệ');
         return;
       }
 
+      // Parse date and time slot into ISO datetime strings
+      // formData.bookingDate is in format "YYYY-MM-DD"
       const startDateTime = new Date(
         `${formData.bookingDate}T${selectedSlot.startTime}:00`
-      );
+      ).toISOString();
 
       const endDateTime = new Date(
         `${formData.bookingDate}T${selectedSlot.endTime}:00`
-    );
+      ).toISOString();
 
       const response = await fetch(`${API_URL}/bookings`, {
         method: 'POST',
@@ -113,16 +107,17 @@ function App() {
         })
       });
 
-      const respBody = await response.json().catch(() => null);
       if (!response.ok) {
-        const msg = respBody?.error || `Không thể tạo đặt lịch: ${response.statusText}`;
-        toast.error(msg);
-        return;
+        const errorData = await response.json();
+        throw new Error(
+          errorData.error || `Không thể tạo đặt lịch`
+        );
       }
 
-      const newBooking = respBody;
+      const newBooking = await response.json();
       setBookings((prevBookings) => [newBooking, ...prevBookings]);
-
+      
+      // Reset form
       setFormData({
         customerName: '',
         pitchName: '',
@@ -130,10 +125,10 @@ function App() {
         timeSlot: ''
       });
 
-      toast.success('Tạo đặt lịch thành công');
+      console.log('Đặt lịch tạo thành công:', newBooking);
     } catch (err) {
       console.error('Lỗi khi tạo đặt lịch:', err.message);
-      toast.error('Không thể tạo đặt lịch. Vui lòng thử lại.');
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -146,22 +141,20 @@ function App() {
     }
 
     try {
+      setError('');
       const response = await fetch(`${API_URL}/bookings/${bookingId}`, {
         method: 'DELETE'
       });
 
-      const body = await response.json().catch(() => null);
       if (!response.ok) {
-        const msg = body?.error || `Không thể hủy đặt lịch: ${response.statusText}`;
-        toast.error(msg);
-        return;
+        throw new Error(`Không thể hủy đặt lịch: ${response.statusText}`);
       }
 
       setBookings((prevBookings) => prevBookings.filter((booking) => booking._id !== bookingId));
-      toast.success('Hủy đặt lịch thành công');
+      console.log('Đặt lịch hủy thành công:', bookingId);
     } catch (err) {
       console.error('Lỗi khi hủy đặt lịch:', err.message);
-      toast.error('Không thể hủy đặt lịch. Vui lòng thử lại.');
+      setError('Không thể hủy đặt lịch. Vui lòng thử lại.');
     }
   };
 
@@ -169,7 +162,12 @@ function App() {
   const formatDateTime = (dateString) => {
     try {
       return new Date(dateString).toLocaleString('vi-VN', {
-        timeZone: 'Asia/Ho_Chi_Minh'
+        timeZone: 'Asia/Ho_Chi_Minh',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
       });
     } catch {
       return dateString;
@@ -178,13 +176,19 @@ function App() {
 
   return (
     <div className="container">
-      <h1 className="title">HỆ THỐNG ĐẶT LỊCH SÂN BÓNG ĐÁ</h1>
+      <h1 className="title">Hệ thống Đặt lịch Sân Bóng Đá</h1>
 
-      {/* Toast notifications */}
+      {/* ===== ERROR ALERT ===== */}
+      {error && (
+        <div className="error-alert">
+          {error}
+          <button className="close-btn" onClick={() => setError('')}>×</button>
+        </div>
+      )}
 
       {/* ===== BOOKING FORM ===== */}
       <div className="form-section">
-        <h2>TẠO ĐẶT LỊCH</h2>
+        <h2>Tạo Đặt lịch</h2>
         <form onSubmit={handleSubmit} className="booking-form">
           <div className="form-group">
             <label htmlFor="customerName">Tên khách hàng:</label>
@@ -224,7 +228,6 @@ function App() {
               id="bookingDate"
               name="bookingDate"
               value={formData.bookingDate}
-              min={minDate}
               onChange={handleInputChange}
               required
             />
@@ -249,7 +252,7 @@ function App() {
           </div>
 
           <button type="submit" className="submit-btn" disabled={loading}>
-            {loading ? 'Đang tạo...' : 'Tạo Đặt Lịch'}
+            {loading ? 'Đang tạo...' : 'Tạo Đặt lịch'}
           </button>
         </form>
       </div>
@@ -292,7 +295,6 @@ function App() {
           </div>
         )}
       </div>
-      <ToastContainer position="top-right" autoClose={5000} />
     </div>
   );
 }
